@@ -72,7 +72,7 @@ export class LMStudioService {
           try {
             const data = JSON.parse(line.slice(6));
             yield data;
-          } catch (e) {
+          } catch {
             // Skip invalid JSON
           }
         }
@@ -102,7 +102,7 @@ export class LMStudioService {
     try {
       await this.listModels();
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

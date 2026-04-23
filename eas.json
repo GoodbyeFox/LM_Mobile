@@ -6,15 +6,18 @@
   "build": {
     "production": {
       "channel": "production",
-      "distribution": "store"
+      "distribution": "store",
+      "node": "20.11.1"
     },
     "preview": {
       "channel": "preview",
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "20.11.1"
     },
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "20.11.1"
     }
   },
   "submit": {

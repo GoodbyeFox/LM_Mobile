@@ -7,11 +7,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useLMStudio } from '@/context/LMStudioContext';
 import { storage } from '@/services/storage';
-import { StyleSheet } from 'react-native';
 
 interface Message {
   id: string;
@@ -25,7 +24,6 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading2, setIsLoading2] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('');
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -64,7 +62,6 @@ export default function ChatScreen() {
 
       const response = await service.chat({
         messages: chatMessages,
-        model: selectedModel || undefined,
       });
 
       const assistantMessage: Message = {

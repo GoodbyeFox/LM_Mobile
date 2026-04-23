@@ -8,12 +8,12 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Switch,
 } from 'react-native';
 import { useLMStudio } from '@/context/LMStudioContext';
+import { LMStudioService } from '@/services/lmStudioService';
 
 export default function SettingsScreen() {
-  const { config, isConfigured, isLoading, setConfig, clearConfig, testConnection } = useLMStudio();
+  const { config, isConfigured, isLoading, setConfig, clearConfig } = useLMStudio();
   const [baseURL, setBaseURL] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [isTestingConnection, setIsTestingConnection] = useState(false);
@@ -55,8 +55,7 @@ export default function SettingsScreen() {
 
     try {
       // Test with the input values first
-      const testService = require('@/services/lmStudioService').LMStudioService;
-      const service = new testService(baseURL.trim(), apiKey.trim() || undefined);
+      const service = new LMStudioService(baseURL.trim(), apiKey.trim() || undefined);
       const isConnected = await service.testConnection();
 
       if (isConnected) {

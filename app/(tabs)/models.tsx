@@ -32,6 +32,7 @@ export default function ModelsScreen() {
     if (isConfigured && service) {
       loadModels();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConfigured, service]);
 
   const loadModels = async () => {
@@ -57,7 +58,7 @@ export default function ModelsScreen() {
     if (!service || !isConfigured) return;
 
     Alert.alert('Load Model', `Load model "${modelId}"?`, [
-      { text: 'Cancel', onPress: () => {} },
+      { text: 'Cancel' },
       {
         text: 'Load',
         onPress: async () => {
@@ -80,7 +81,7 @@ export default function ModelsScreen() {
     if (!service || !isConfigured) return;
 
     Alert.alert('Unload Model', 'Unload the current model?', [
-      { text: 'Cancel', onPress: () => {} },
+      { text: 'Cancel' },
       {
         text: 'Unload',
         onPress: async () => {
