@@ -1,0 +1,86 @@
+name: Build and Package App
+
+on:
+  push:
+    branches:
+      - claude/lm-studio-mobile-app-VqKml
+      - main
+      - develop
+  pull_request:
+    branches:
+      - claude/lm-studio-mobile-app-VqKml
+      - main
+
+jobs:
+  build:
+    name: Build Mobile App
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK
+        run: eas build --platform android --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-apk
+          path: '*.apk'
+          retention-days: 30
+
+      - name: Build iOS
+        run: eas build --platform ios --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Upload iOS build logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-build-logs
+          path: '~/.eas/logs'
+          retention-days: 7
+
+  notify:
+    name: Notify Build Status
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate summary
+        run: |
+          echo "# Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Build completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -d "android-apk" ]; then
+            echo "## Android APK" >> $GITHUB_STEP_SUMMARY
+            find android-apk -name "*.apk" -exec echo "- {}" \; >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,30 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "requireCommit": true
+  },
+  "build": {
+    "production": {
+      "channel": "production",
+      "distribution": "store"
+    },
+    "preview": {
+      "channel": "preview",
+      "distribution": "internal"
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "1234567890"
+      },
+      "android": {
+        "googlePlay": true
+      }
+    }
+  }
+}
