@@ -341,15 +341,16 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ **Build Successful!**\n\n📦 **Artifacts Available**:\n- `web-build`: Pre-built web version (ready to deploy)\n- `build-info`: Build details and instructions\n\n🧪 **Tests Passed**:\n- ✅ TypeScript type checking\n- ✅ ESLint linting\n- ✅ Web build export\n\n📱 **Next Steps**:\n1. Download artifacts\n2. Test web version or build mobile app locally\n3. Configure LM Studio connection\n4. Start chatting!\n\nSee BUILD_INFO.md for detailed instructions.'
+              body: '✅ **Build Successful!**\n\n🌐 **Web Version**: https://goodbyefox.github.io/lm_mobile/\n\n📦 **Artifacts**:\n- `web-build`: Download for local deployment\n- `build-info`: Build details\n\n✅ **Checks Passed**:\n- ✅ TypeScript type checking\n- ✅ ESLint linting  \n- ✅ Web build export\n\n**Try it now**: https://goodbyefox.github.io/lm_mobile/'
             })
 
   deploy-pages:
-    name: Deploy Web to GitHub Pages
+    name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push'
     permissions:
+      contents: read
       pages: write
       id-token: write
 
@@ -358,16 +359,28 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-build
-          path: dist
+          path: .
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload artifact
+      - name: Upload to Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'dist'
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v3
+
+      - name: Comment deployment success
+        if: github.event_name == 'push' && github.ref == 'refs/heads/claude/lm-studio-mobile-app-VqKml'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const payload = github.context.payload;
+
+            console.log('✅ Deployment to GitHub Pages completed!');
+            console.log('🌐 Live URL: https://goodbyefox.github.io/lm_mobile/');
+            console.log('📝 Commit: ' + payload.head_commit.message.split('\n')[0]);
