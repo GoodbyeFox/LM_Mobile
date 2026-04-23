@@ -39,6 +39,12 @@ jobs:
       - name: Build Web Version
         run: npx expo export --platform web --output-dir ./dist
 
+      - name: Fix paths for GitHub Pages
+        run: node scripts/fix-github-pages.js
+
+      - name: Create .nojekyll for GitHub Pages
+        run: touch dist/.nojekyll
+
       - name: Create index.html for routing
         run: |
           cat > dist/index.html << 'EOF'
