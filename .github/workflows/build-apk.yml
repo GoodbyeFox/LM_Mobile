@@ -350,37 +350,37 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     permissions:
-      contents: read
-      pages: write
-      id-token: write
+      contents: write
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download web build
         uses: actions/download-artifact@v4
         with:
           name: web-build
-          path: .
+          path: dist-deploy
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload to Pages
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: '.'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist-deploy
+          cname:
+          force_orphan: false
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v3
-
-      - name: Comment deployment success
-        if: github.event_name == 'push' && github.ref == 'refs/heads/claude/lm-studio-mobile-app-VqKml'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const payload = github.context.payload;
-
-            console.log('✅ Deployment to GitHub Pages completed!');
-            console.log('🌐 Live URL: https://goodbyefox.github.io/lm_mobile/');
-            console.log('📝 Commit: ' + payload.head_commit.message.split('\n')[0]);
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Web version deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📱 Access the app:" >> $GITHUB_STEP_SUMMARY
+          echo "- Online: https://goodbyefox.github.io/lm_mobile/" >> $GITHUB_STEP_SUMMARY
+          echo "- Local: Download web-build artifact and run \`node serve.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚙️ First time setup:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Settings tab → LM Studio server (http://localhost:1234)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Models tab → Load a model" >> $GITHUB_STEP_SUMMARY
+          echo "3. Chat tab → Start chatting!" >> $GITHUB_STEP_SUMMARY
