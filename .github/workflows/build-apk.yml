@@ -350,43 +350,46 @@ jobs:
               body: '✅ **Build Successful!**\n\n🌐 **Web Version**: https://goodbyefox.github.io/lm_mobile/\n\n📦 **Artifacts**:\n- `web-build`: Download for local deployment\n- `build-info`: Build details\n\n✅ **Checks Passed**:\n- ✅ TypeScript type checking\n- ✅ ESLint linting  \n- ✅ Web build export\n\n**Try it now**: https://goodbyefox.github.io/lm_mobile/'
             })
 
-  deploy-pages:
-    name: Deploy to GitHub Pages
+  release-artifact:
+    name: Create Release Artifact
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    permissions:
-      contents: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Download web build
         uses: actions/download-artifact@v4
         with:
           name: web-build
-          path: dist-deploy
+          path: web-app
 
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist-deploy
-          cname:
-          force_orphan: false
-
-      - name: Create deployment summary
+      - name: Create archive
         run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          zip -r web-app.zip web-app/
+          ls -lh web-app.zip
+
+      - name: Upload archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-app-complete
+          path: web-app.zip
+          retention-days: 30
+
+      - name: Create summary
+        run: |
+          echo "## 🚀 Build Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Web version deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Download & Run" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📱 Access the app:" >> $GITHUB_STEP_SUMMARY
-          echo "- Online: https://goodbyefox.github.io/lm_mobile/" >> $GITHUB_STEP_SUMMARY
-          echo "- Local: Download web-build artifact and run \`node serve.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# 1. Download web-app-complete artifact" >> $GITHUB_STEP_SUMMARY
+          echo "unzip web-app.zip && cd web-app" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚙️ First time setup:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Settings tab → LM Studio server (http://localhost:1234)" >> $GITHUB_STEP_SUMMARY
-          echo "2. Models tab → Load a model" >> $GITHUB_STEP_SUMMARY
-          echo "3. Chat tab → Start chatting!" >> $GITHUB_STEP_SUMMARY
+          echo "# 2. Start server" >> $GITHUB_STEP_SUMMARY
+          echo "node serve.js" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# 3. Open browser" >> $GITHUB_STEP_SUMMARY
+          echo "http://localhost:8000" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ See WEB_VERSION.md for detailed instructions" >> $GITHUB_STEP_SUMMARY
