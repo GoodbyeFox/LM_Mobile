@@ -39,6 +39,182 @@ jobs:
       - name: Build Web Version
         run: npx expo export --platform web --output-dir ./dist
 
+      - name: Create index.html for routing
+        run: |
+          cat > dist/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>LM Studio Mobile App</title>
+              <style>
+                  * { margin: 0; padding: 0; box-sizing: border-box; }
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      padding: 20px;
+                  }
+                  .container {
+                      background: white;
+                      border-radius: 16px;
+                      padding: 40px;
+                      max-width: 500px;
+                      width: 100%;
+                      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                      text-align: center;
+                  }
+                  .logo { font-size: 48px; margin-bottom: 20px; }
+                  h1 { color: #333; margin-bottom: 16px; font-size: 28px; }
+                  .subtitle { color: #666; font-size: 16px; margin-bottom: 32px; line-height: 1.6; }
+                  .features { text-align: left; margin: 32px 0; padding: 20px; background: #f8f9fa; border-radius: 12px; }
+                  .features li { list-style: none; padding: 8px 0; color: #555; }
+                  .features li:before { content: "✓"; color: #34c759; font-weight: bold; margin-right: 12px; }
+                  button {
+                      padding: 14px 24px;
+                      border: none;
+                      border-radius: 10px;
+                      font-size: 16px;
+                      font-weight: 600;
+                      cursor: pointer;
+                      margin-top: 20px;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      width: 100%;
+                  }
+                  button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="logo">💬</div>
+                  <h1>LM Studio Mobile App</h1>
+                  <p class="subtitle">本地 AI 聊天应用</p>
+                  <ul class="features">
+                      <li>实时聊天</li>
+                      <li>模型管理</li>
+                      <li>一键配置</li>
+                  </ul>
+                  <button onclick="startApp()">启动应用</button>
+              </div>
+              <script>
+                  function startApp() {
+                      window.location.href = '/(tabs)/chat.html';
+                  }
+              </script>
+          </body>
+          </html>
+          EOF
+
+      - name: Copy server scripts
+        run: |
+          cp serve.js dist/
+          cp serve.py dist/
+          echo "📂 Created: dist/serve.js (Node.js server)"
+          echo "📂 Created: dist/serve.py (Python server)"
+
+      - name: Create deployment README
+        run: |
+          cat > dist/README.md << 'EOF'
+          # LM Studio Mobile App - Web Version
+
+          ## 🚀 快速开始
+
+          ### 方法 1: 使用 Node.js（推荐）
+
+          ```bash
+          # 如果已经有 Node.js
+          node serve.js
+
+          # 然后在浏览器打开
+          http://localhost:8000
+          ```
+
+          ### 方法 2: 使用 Python
+
+          ```bash
+          # Python 3
+          python serve.py
+
+          # 或 Python 2
+          python -m SimpleHTTPServer 8000
+          ```
+
+          ### 方法 3: 使用 npm http-server
+
+          ```bash
+          npx http-server -p 8000 -c-1
+          ```
+
+          ## ⚙️ 配置 LM Studio
+
+          1. 确保 LM Studio 正在运行（默认端口 1234）
+          2. 在应用中打开 Settings 标签
+          3. 输入服务器地址：`http://localhost:1234`
+          4. 点击 "Test Connection" 验证
+          5. 保存配置
+
+          ## 🎯 第一次使用
+
+          1. 启动服务器（选择上面的任意方法）
+          2. 在浏览器打开：http://localhost:8000
+          3. 配置 LM Studio 连接
+          4. 在 Models 标签加载一个模型
+          5. 在 Chat 标签开始聊天
+
+          ## 🔧 故障排除
+
+          ### 端口已被占用
+          ```bash
+          # 使用其他端口
+          PORT=3000 node serve.js
+          ```
+
+          ### LM Studio 无法连接
+          - 确保 LM Studio 正在运行
+          - 检查防火墙设置
+          - 尝试手动访问：http://localhost:1234/api/v1/models
+
+          ### 应用无法加载
+          - 清除浏览器缓存
+          - 按 F12 查看控制台错误
+          - 检查服务器是否正常运行
+
+          ## 📱 在其他设备上访问
+
+          如果要在网络上的其他设备访问：
+
+          ```bash
+          # 获取你的 IP 地址（例如 192.168.1.100）
+          ifconfig  # macOS/Linux
+          ipconfig  # Windows
+
+          # 在其他设备浏览器打开：
+          # http://192.168.1.100:8000
+          ```
+
+          ## 📚 更多信息
+
+          - 完整文档：参考项目 README.md
+          - 快速入门：参考 QUICKSTART.md
+          - 开发指南：参考 CLAUDE.md
+
+          ---
+
+          **LM Studio Mobile App v1.0.0**
+          EOF
+
+      - name: Create web-build artifact
+        run: |
+          ls -lh dist/
+          echo ""
+          echo "✅ Web build ready in dist/"
+          echo "📦 Ready for download and deployment"
+
       - name: Upload Web Build
         uses: actions/upload-artifact@v4
         with:
