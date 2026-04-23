@@ -2,6 +2,15 @@
 
 A beautiful, feature-rich React Native mobile application for interacting with LM Studio's local AI models via REST API.
 
+## 🚀 Try it Now!
+
+### 🌐 **Live Demo** (No installation needed)
+```
+https://goodbyefox.github.io/lm_mobile/
+```
+
+Open the link in your browser and start using immediately!
+
 ## Features
 
 ### 💬 Chat Interface
@@ -24,50 +33,72 @@ A beautiful, feature-rich React Native mobile application for interacting with L
 - Support for both authenticated and unauthenticated connections
 - Configuration persistence across app restarts
 
-## Getting Started
+## 🎯 Quick Start (3 Ways)
 
-### Prerequisites
+### Way 1️⃣: 🌐 Online Version (Easiest - No installation!)
 
+```
+1. Open: https://goodbyefox.github.io/lm_mobile/
+2. Configure LM Studio server address
+3. Start chatting!
+```
+
+✅ Works instantly in any browser
+✅ No installation required
+✅ Auto-updates with latest features
+
+### Way 2️⃣: 💻 Local Development
+
+Prerequisites:
 - Node.js 18+ and npm
-- LM Studio installed and running on your machine or accessible via network
-- iOS or Android device/emulator (or Expo Go for testing)
+- LM Studio installed and running locally
 
-### Installation
+Steps:
+```bash
+# 1. Install dependencies
+npm install
 
-1. Install dependencies:
-   ```bash
-   npm install
+# 2. Start development server
+npx expo start
+
+# 3. Choose platform:
+# Press 'w' for web
+# Press 'i' for iOS
+# Press 'a' for Android
+# Or scan QR with Expo Go
+```
+
+### Way 3️⃣: 📥 Download & Run Offline
+
+```bash
+# 1. Download web-app-complete artifact from GitHub Actions
+unzip web-app.zip && cd web-app
+
+# 2. Run server
+node serve.js
+
+# 3. Open browser
+http://localhost:8000
+```
+
+## ⚙️ Configuration
+
+### Initial Setup for All Methods
+
+1. **Open the app** → Go to **Settings** tab
+2. **Enter LM Studio address**:
    ```
-
-2. Start the Expo development server:
-   ```bash
-   npx expo start
+   http://localhost:1234
    ```
+   (or your remote server address)
+3. **Test Connection** → Click the button to verify
+4. **Save Configuration**
 
-3. Choose your platform:
-   - Press `i` for iOS simulator
-   - Press `a` for Android emulator
-   - Press `w` for web (opens in browser)
-   - Scan QR code with Expo Go app on physical device
+### Load a Model & Chat
 
-### Initial Setup
-
-1. **Configure LM Studio Connection**:
-   - Open the Settings tab
-   - Enter your LM Studio server URL (e.g., `http://localhost:1234` or `https://api.example.com`)
-   - Optionally enter API key if your LM Studio instance requires authentication
-   - Tap "Test Connection" to verify connectivity
-   - Tap "Save Configuration"
-
-2. **Load a Model**:
-   - Navigate to the Models tab
-   - Tap "Load" on the model you want to use
-   - Wait for the model to load (this may take a few moments)
-
-3. **Start Chatting**:
-   - Go to the Chat tab
-   - Type your message and tap "Send"
-   - Your conversation will be saved automatically
+1. **Models tab** → Load a model
+2. **Chat tab** → Start typing and send messages
+3. **History saved automatically** → Reopens with your conversation
 
 ## Architecture
 
