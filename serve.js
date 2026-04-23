@@ -12,8 +12,31 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-const PORT = 8000;
-const DIST_DIR = path.join(__dirname, 'dist');
+const PORT = process.env.PORT || 8000;
+
+// 自动检测静态文件目录：
+// - 如果当前目录下有 dist，使用 dist（本地开发/导出后的场景）
+// - 否则使用当前目录（gh-pages 分支克隆后的场景）
+function findServeDir() {
+  const distPath = path.join(__dirname, 'dist');
+  if (fs.existsSync(distPath) && fs.statSync(distPath).isDirectory()) {
+    // 确保 dist 里有 HTML 文件（避免空目录误判）
+    const files = fs.readdirSync(distPath);
+    if (files.some(f => f.endsWith('.html'))) {
+      return distPath;
+    }
+  }
+
+  // 检查当前目录是否包含构建产物
+  const currentFiles = fs.readdirSync(__dirname);
+  if (currentFiles.some(f => f.endsWith('.html')) && currentFiles.includes('_expo')) {
+    return __dirname;
+  }
+
+  return distPath; // 默认返回 dist 路径，后续会报错提示
+}
+
+const DIST_DIR = findServeDir();
 
 const mimeTypes = {
   '.html': 'text/html',
@@ -90,10 +113,20 @@ const server = http.createServer((req, res) => {
   });
 });
 
-// Check if dist directory exists
+// 检查静态文件目录是否可用
 if (!fs.existsSync(DIST_DIR)) {
-  console.error('❌ Error: dist directory not found');
-  console.error('Please run: npx expo export --platform web --output-dir ./dist');
+  console.error('❌ 错误：找不到静态文件目录');
+  console.error('');
+  console.error('请确认以下情况之一：');
+  console.error('  1. 源码目录：运行 npx expo export --platform web --output-dir ./dist');
+  console.error('  2. gh-pages 分支：直接在克隆目录运行 node serve.js');
+  process.exit(1);
+}
+
+const hasHtml = fs.readdirSync(DIST_DIR).some(f => f.endsWith('.html'));
+if (!hasHtml) {
+  console.error(`❌ 错误：${DIST_DIR} 中没有找到 HTML 文件`);
+  console.error('请先运行 npx expo export --platform web --output-dir ./dist');
   process.exit(1);
 }
 
@@ -102,14 +135,13 @@ server.listen(PORT, () => {
   console.log('='.repeat(60));
   console.log('🚀 LM Studio Mobile App - Web Server');
   console.log('='.repeat(60));
-  console.log(`\n✅ Server running at: http://localhost:${PORT}\n`);
-  console.log('🎯 Open in browser:');
+  console.log(`\n📂 静态目录: ${DIST_DIR}`);
+  console.log(`✅ 服务运行中: http://localhost:${PORT}\n`);
+  console.log('🎯 在浏览器打开:');
   console.log(`   http://localhost:${PORT}`);
-  console.log(`   http://127.0.0.1:${PORT}`);
-  console.log(`   http://<your-ip>:${PORT}  (for network access)\n`);
-  console.log('⚠️  Make sure LM Studio is running!');
-  console.log('   Default: http://localhost:1234\n');
-  console.log('💡 Press Ctrl+C to stop the server');
+  console.log(`   http://127.0.0.1:${PORT}\n`);
+  console.log('⚠️  请确保 LM Studio 已运行 (默认 http://localhost:1234)');
+  console.log('💡 按 Ctrl+C 停止服务');
   console.log('='.repeat(60) + '\n');
 });
 

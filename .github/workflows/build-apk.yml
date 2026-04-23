@@ -109,7 +109,7 @@ jobs:
               </div>
               <script>
                   function startApp() {
-                      window.location.href = '/(tabs)/chat.html';
+                      window.location.href = './(tabs)/chat.html';
                   }
               </script>
           </body>
