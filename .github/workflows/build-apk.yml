@@ -393,3 +393,35 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ See WEB_VERSION.md for detailed instructions" >> $GITHUB_STEP_SUMMARY
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: dist-deploy
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist-deploy
+          force_orphan: true
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 Live URL: https://goodbyefox.github.io/lm_mobile/" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
