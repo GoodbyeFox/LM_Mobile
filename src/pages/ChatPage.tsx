@@ -92,8 +92,8 @@ export default function ChatPage() {
       const chatInput =
         images.length > 0
           ? [
-              { type: 'text', text: text || '' },
-              ...images.map((img) => ({ type: 'image_url', image_url: { url: img } })),
+              { type: 'text', content: text || '' },
+              ...images.map((img) => ({ type: 'image', content: img })),
             ]
           : text
 
