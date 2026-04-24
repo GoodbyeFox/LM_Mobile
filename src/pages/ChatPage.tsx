@@ -21,6 +21,7 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     storage.saveChatHistory(messages)
@@ -70,53 +71,73 @@ export default function ChatPage() {
     setImages((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const handleStop = () => {
+    abortRef.current?.abort()
+  }
+
   const handleSend = async () => {
     const text = input.trim()
     if ((!text && images.length === 0) || !api || sending || !selectedModel) return
 
+    const capturedImages = [...images]
     const userMessage: Message = {
       id: `u-${Date.now()}`,
       role: 'user',
       content: text,
       timestamp: Date.now(),
-      images: images.length > 0 ? [...images] : undefined,
+      images: capturedImages.length > 0 ? capturedImages : undefined,
     }
+    const assistantId = `a-${Date.now()}`
 
-    setMessages((prev) => [...prev, userMessage])
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+      { id: assistantId, role: 'assistant' as const, content: '', timestamp: Date.now() },
+    ])
     setInput('')
     setImages([])
     setError(null)
     setSending(true)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
       const chatInput =
-        images.length > 0
+        capturedImages.length > 0
           ? [
               { type: 'text', content: text || '' },
-              ...images.map((img) => ({ type: 'image', data_url: img })),
+              ...capturedImages.map((img) => ({ type: 'image', data_url: img })),
             ]
           : text
 
-      const response = await api.chat(chatInput, selectedModel, responseId)
-      const messageItem = response.output.find((o) => o.type === 'message')
-      const assistantMessage: Message = {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        content: messageItem?.content ?? '',
-        timestamp: Date.now(),
-        responseId: response.response_id,
-        outputItems: response.output,
+      const { responseId: newResponseId } = await api.streamChat(
+        chatInput,
+        selectedModel,
+        responseId,
+        (chunk) => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m))
+          )
+        },
+        controller.signal
+      )
+
+      if (newResponseId) {
+        setResponseId(newResponseId)
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, responseId: newResponseId } : m))
+        )
       }
-      setResponseId(response.response_id)
-      setMessages((prev) => [...prev, assistantMessage])
     } catch (err) {
+      if ((err as Error).name === 'AbortError') return
       setError(err instanceof Error ? err.message : '发送失败')
-      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id))
+      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id && m.id !== assistantId))
       setInput(text)
-      setImages([])
     } finally {
       setSending(false)
+      abortRef.current = null
     }
   }
 
@@ -192,17 +213,16 @@ export default function ChatPage() {
           </div>
         )}
 
-        {messages.map((m) => (
-          <MessageBubble key={m.id} role={m.role} content={m.content} outputItems={m.outputItems} images={m.images} />
+        {messages.map((m, idx) => (
+          <MessageBubble
+            key={m.id}
+            role={m.role}
+            content={m.content}
+            outputItems={m.outputItems}
+            images={m.images}
+            streaming={sending && idx === messages.length - 1 && m.role === 'assistant'}
+          />
         ))}
-
-        {sending && (
-          <div className="message-row message-assistant">
-            <div className="message-bubble message-bubble-assistant typing-bubble">
-              <TypingDots />
-            </div>
-          </div>
-        )}
       </div>
 
       {error && <div className="chat-error">⚠️ {error}</div>}
@@ -254,12 +274,12 @@ export default function ChatPage() {
         />
         <button
           type="button"
-          className="btn btn-primary chat-send"
-          onClick={handleSend}
-          disabled={(!input.trim() && images.length === 0) || sending || !selectedModel}
-          aria-label="发送"
+          className={`btn chat-send ${sending ? 'btn-danger' : 'btn-primary'}`}
+          onClick={sending ? handleStop : handleSend}
+          disabled={!sending && ((!input.trim() && images.length === 0) || !selectedModel)}
+          aria-label={sending ? '停止' : '发送'}
         >
-          {sending ? <span className="spinner" /> : <SendIcon />}
+          {sending ? <StopIcon /> : <SendIcon />}
         </button>
       </div>
     </div>
@@ -271,15 +291,17 @@ function MessageBubble({
   content,
   outputItems,
   images,
+  streaming,
 }: {
   role: 'user' | 'assistant'
   content: string
   outputItems?: OutputItem[]
   images?: string[]
+  streaming?: boolean
 }) {
   return (
     <div className={`message-row message-${role}`}>
-      <div className={`message-bubble message-bubble-${role}`}>
+      <div className={`message-bubble message-bubble-${role}${streaming && !content ? ' typing-bubble' : ''}`}>
         {images && images.length > 0 && (
           <div className="message-images">
             {images.map((img, idx) => (
@@ -287,7 +309,9 @@ function MessageBubble({
             ))}
           </div>
         )}
-        {role === 'assistant' && outputItems ? (
+        {streaming && !content && !outputItems ? (
+          <TypingDots />
+        ) : role === 'assistant' && outputItems ? (
           <>
             {outputItems.map((item, idx) => {
               if (item.type === 'message') {
@@ -333,6 +357,14 @@ function TypingDots() {
       <span />
       <span />
     </span>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+    </svg>
   )
 }
 

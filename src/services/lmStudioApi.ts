@@ -1,12 +1,16 @@
 import axios, { AxiosInstance } from 'axios'
-import type { ChatResponse, Model, LMStudioConfig } from '@/types'
+import type { Model, LMStudioConfig } from '@/types'
 
 export class LMStudioApi {
   private client: AxiosInstance
+  private baseURL: string
+  private apiKey?: string
 
   constructor(config: LMStudioConfig) {
+    this.baseURL = config.baseURL.replace(/\/$/, '')
+    this.apiKey = config.apiKey
     this.client = axios.create({
-      baseURL: config.baseURL.replace(/\/$/, ''),
+      baseURL: this.baseURL,
       timeout: 120000,
       headers: {
         'Content-Type': 'application/json',
@@ -15,17 +19,79 @@ export class LMStudioApi {
     })
   }
 
-  async chat(
+  async streamChat(
     input: string | Array<{ type: string; [key: string]: unknown }>,
     model: string,
-    previousResponseId?: string
-  ): Promise<ChatResponse> {
-    const response = await this.client.post('/api/v1/chat', {
-      model,
-      input,
-      ...(previousResponseId ? { previous_response_id: previousResponseId } : {}),
+    previousResponseId: string | undefined,
+    onChunk: (text: string) => void,
+    signal?: AbortSignal
+  ): Promise<{ responseId?: string }> {
+    const response = await fetch(`${this.baseURL}/api/v1/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model,
+        input,
+        stream: true,
+        ...(previousResponseId ? { previous_response_id: previousResponseId } : {}),
+      }),
+      signal,
     })
-    return response.data as ChatResponse
+
+    if (!response.ok) {
+      let errMsg = response.statusText
+      try {
+        const errData = await response.json()
+        errMsg = errData?.error?.message ?? errMsg
+      } catch {}
+      throw new Error(errMsg)
+    }
+
+    if (!response.body) throw new Error('Response has no body')
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let responseId: string | undefined
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data:')) continue
+          const data = trimmed.slice(5).trim()
+          if (data === '[DONE]') continue
+
+          try {
+            const event = JSON.parse(data)
+            if (event.response_id) responseId = event.response_id
+
+            // Try multiple possible streaming formats
+            const text =
+              event.text ??
+              event.chunk ??
+              event.delta?.text ??
+              event.choices?.[0]?.delta?.content
+
+            if (typeof text === 'string' && text) onChunk(text)
+          } catch {}
+        }
+      }
+    } finally {
+      reader.releaseLock()
+    }
+
+    return { responseId }
   }
 
   async listModels(): Promise<Model[]> {
