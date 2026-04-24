@@ -274,6 +274,22 @@
   }
 }
 
+/* Images in messages */
+.message-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.message-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
 /* Markdown styles */
 .message-bubble-assistant p {
   margin: 8px 0;

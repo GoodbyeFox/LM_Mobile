@@ -5,6 +5,7 @@ export interface Message {
   timestamp: number
   responseId?: string
   outputItems?: OutputItem[]
+  images?: string[]
 }
 
 export interface LoadedInstance {

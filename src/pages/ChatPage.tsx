@@ -77,8 +77,9 @@ export default function ChatPage() {
     const userMessage: Message = {
       id: `u-${Date.now()}`,
       role: 'user',
-      content: text || '(图片)',
+      content: text,
       timestamp: Date.now(),
+      images: images.length > 0 ? [...images] : undefined,
     }
 
     setMessages((prev) => [...prev, userMessage])
@@ -192,7 +193,7 @@ export default function ChatPage() {
         )}
 
         {messages.map((m) => (
-          <MessageBubble key={m.id} role={m.role} content={m.content} outputItems={m.outputItems} />
+          <MessageBubble key={m.id} role={m.role} content={m.content} outputItems={m.outputItems} images={m.images} />
         ))}
 
         {sending && (
@@ -269,14 +270,23 @@ function MessageBubble({
   role,
   content,
   outputItems,
+  images,
 }: {
   role: 'user' | 'assistant'
   content: string
   outputItems?: OutputItem[]
+  images?: string[]
 }) {
   return (
     <div className={`message-row message-${role}`}>
       <div className={`message-bubble message-bubble-${role}`}>
+        {images && images.length > 0 && (
+          <div className="message-images">
+            {images.map((img, idx) => (
+              <img key={idx} src={img} alt={`图片 ${idx + 1}`} className="message-image" />
+            ))}
+          </div>
+        )}
         {role === 'assistant' && outputItems ? (
           <>
             {outputItems.map((item, idx) => {
@@ -306,11 +316,11 @@ function MessageBubble({
               return null
             })}
           </>
-        ) : (
+        ) : content ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
             {content}
           </ReactMarkdown>
-        )}
+        ) : null}
       </div>
     </div>
   )
