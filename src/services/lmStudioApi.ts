@@ -10,7 +10,7 @@ export class LMStudioApi {
       timeout: 120000,
       headers: {
         'Content-Type': 'application/json',
-        ...(config.apiKey ? { 'X-API-Key': config.apiKey } : {}),
+        ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {}),
       },
     })
   }
