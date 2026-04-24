@@ -319,47 +319,34 @@ function MessageBubble({
           </div>
         )}
         {reasoning && (
-          <details className="reasoning-block" open={streaming && !content}>
+          <details className="reasoning-block" open={!!streaming}>
             <summary className="reasoning-summary">思考过程</summary>
             <div className="reasoning-content">{reasoning}</div>
           </details>
         )}
         {streaming && !content && !reasoning ? (
           <TypingDots />
-        ) : role === 'assistant' && outputItems ? (
-          <>
-            {outputItems.map((item, idx) => {
-              if (item.type === 'message') {
-                return (
-                  <ReactMarkdown key={idx} remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                    {item.content}
-                  </ReactMarkdown>
-                )
-              }
-              if (item.type === 'tool_call') {
-                return (
-                  <div key={idx} className="tool-call-block">
-                    <div className="tool-call-header">🔧 Tool Call: {item.name}</div>
-                    <pre className="tool-call-args">{item.arguments}</pre>
-                  </div>
-                )
-              }
-              if (item.type === 'tool_output') {
-                return (
-                  <div key={idx} className="tool-output-block">
-                    <div className="tool-output-header">✓ Tool Output</div>
-                    <div className="tool-output-content">{item.content}</div>
-                  </div>
-                )
-              }
-              return null
-            })}
-          </>
         ) : content ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
             {content}
           </ReactMarkdown>
         ) : null}
+        {outputItems?.filter(item => item.type === 'tool_call' || item.type === 'tool_output').map((item, idx) => {
+          if (item.type === 'tool_call') {
+            return (
+              <div key={idx} className="tool-call-block">
+                <div className="tool-call-header">🔧 Tool Call: {item.name}</div>
+                <pre className="tool-call-args">{item.arguments}</pre>
+              </div>
+            )
+          }
+          return (
+            <div key={idx} className="tool-output-block">
+              <div className="tool-output-header">✓ Tool Output</div>
+              <div className="tool-output-content">{item.content}</div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
