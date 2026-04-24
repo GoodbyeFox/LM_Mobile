@@ -4,6 +4,7 @@ export interface Message {
   content: string
   timestamp: number
   responseId?: string
+  outputItems?: OutputItem[]
 }
 
 export interface LoadedInstance {
@@ -33,8 +34,16 @@ export interface LMStudioConfig {
   apiKey?: string
 }
 
+export interface OutputItem {
+  type: string
+  content: string
+  name?: string
+  arguments?: string
+  tool_use_id?: string
+}
+
 export interface ChatResponse {
-  output: Array<{ type: string; content: string }>
+  output: OutputItem[]
   response_id?: string
   stats?: {
     input_tokens: number

@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
 import { useLMStudio } from '@/contexts/LMStudioContext'
 import { storage } from '@/services/storage'
-import type { Message, Model } from '@/types'
+import type { Message, Model, OutputItem } from '@/types'
 import './ChatPage.css'
 
 export default function ChatPage() {
@@ -14,8 +17,10 @@ export default function ChatPage() {
   const [models, setModels] = useState<Model[]>([])
   const [selectedModel, setSelectedModel] = useState<string>('')
   const [responseId, setResponseId] = useState<string | undefined>(undefined)
+  const [images, setImages] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     storage.saveChatHistory(messages)
@@ -42,25 +47,57 @@ export default function ChatPage() {
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
   }
 
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.currentTarget.files
+    if (!files) return
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string
+        setImages((prev) => [...prev, dataUrl])
+      }
+      reader.readAsDataURL(file)
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const handleSend = async () => {
     const text = input.trim()
-    if (!text || !api || sending || !selectedModel) return
+    if ((!text && images.length === 0) || !api || sending || !selectedModel) return
 
     const userMessage: Message = {
       id: `u-${Date.now()}`,
       role: 'user',
-      content: text,
+      content: text || '(图片)',
       timestamp: Date.now(),
     }
 
     setMessages((prev) => [...prev, userMessage])
     setInput('')
+    setImages([])
     setError(null)
     setSending(true)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
     try {
-      const response = await api.chat(text, selectedModel, responseId)
+      const chatInput =
+        images.length > 0
+          ? [
+              { type: 'text', text: text || '' },
+              ...images.map((img) => ({ type: 'image_url', image_url: { url: img } })),
+            ]
+          : text
+
+      const response = await api.chat(chatInput, selectedModel, responseId)
       const messageItem = response.output.find((o) => o.type === 'message')
       const assistantMessage: Message = {
         id: `a-${Date.now()}`,
@@ -68,6 +105,7 @@ export default function ChatPage() {
         content: messageItem?.content ?? '',
         timestamp: Date.now(),
         responseId: response.response_id,
+        outputItems: response.output,
       }
       setResponseId(response.response_id)
       setMessages((prev) => [...prev, assistantMessage])
@@ -75,6 +113,7 @@ export default function ChatPage() {
       setError(err instanceof Error ? err.message : '发送失败')
       setMessages((prev) => prev.filter((m) => m.id !== userMessage.id))
       setInput(text)
+      setImages([])
     } finally {
       setSending(false)
     }
@@ -153,7 +192,7 @@ export default function ChatPage() {
         )}
 
         {messages.map((m) => (
-          <MessageBubble key={m.id} role={m.role} content={m.content} />
+          <MessageBubble key={m.id} role={m.role} content={m.content} outputItems={m.outputItems} />
         ))}
 
         {sending && (
@@ -167,7 +206,38 @@ export default function ChatPage() {
 
       {error && <div className="chat-error">⚠️ {error}</div>}
 
+      {images.length > 0 && (
+        <div className="chat-image-preview">
+          {images.map((img, idx) => (
+            <div key={idx} className="image-preview-item">
+              <img src={img} alt={`preview-${idx}`} />
+              <button type="button" className="btn-remove-image" onClick={() => removeImage(idx)}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="chat-input-bar">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          className="chat-file-input"
+          onChange={handleImageSelect}
+          disabled={sending}
+        />
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm chat-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sending}
+          aria-label="添加图片"
+        >
+          📎
+        </button>
         <textarea
           ref={textareaRef}
           className="chat-input"
@@ -185,7 +255,7 @@ export default function ChatPage() {
           type="button"
           className="btn btn-primary chat-send"
           onClick={handleSend}
-          disabled={!input.trim() || sending || !selectedModel}
+          disabled={(!input.trim() && images.length === 0) || sending || !selectedModel}
           aria-label="发送"
         >
           {sending ? <span className="spinner" /> : <SendIcon />}
@@ -195,13 +265,52 @@ export default function ChatPage() {
   )
 }
 
-function MessageBubble({ role, content }: { role: 'user' | 'assistant'; content: string }) {
+function MessageBubble({
+  role,
+  content,
+  outputItems,
+}: {
+  role: 'user' | 'assistant'
+  content: string
+  outputItems?: OutputItem[]
+}) {
   return (
     <div className={`message-row message-${role}`}>
       <div className={`message-bubble message-bubble-${role}`}>
-        {content.split('\n').map((line, i) => (
-          <p key={i}>{line || ' '}</p>
-        ))}
+        {role === 'assistant' && outputItems ? (
+          <>
+            {outputItems.map((item, idx) => {
+              if (item.type === 'message') {
+                return (
+                  <ReactMarkdown key={idx} remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                    {item.content}
+                  </ReactMarkdown>
+                )
+              }
+              if (item.type === 'tool_call') {
+                return (
+                  <div key={idx} className="tool-call-block">
+                    <div className="tool-call-header">🔧 Tool Call: {item.name}</div>
+                    <pre className="tool-call-args">{item.arguments}</pre>
+                  </div>
+                )
+              }
+              if (item.type === 'tool_output') {
+                return (
+                  <div key={idx} className="tool-output-block">
+                    <div className="tool-output-header">✓ Tool Output</div>
+                    <div className="tool-output-content">{item.content}</div>
+                  </div>
+                )
+              }
+              return null
+            })}
+          </>
+        ) : (
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+            {content}
+          </ReactMarkdown>
+        )}
       </div>
     </div>
   )

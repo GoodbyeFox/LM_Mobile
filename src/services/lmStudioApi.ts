@@ -15,7 +15,11 @@ export class LMStudioApi {
     })
   }
 
-  async chat(input: string, model: string, previousResponseId?: string): Promise<ChatResponse> {
+  async chat(
+    input: string | Array<{ type: string; [key: string]: unknown }>,
+    model: string,
+    previousResponseId?: string
+  ): Promise<ChatResponse> {
     const response = await this.client.post('/api/v1/chat', {
       model,
       input,
