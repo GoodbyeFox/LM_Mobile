@@ -74,16 +74,31 @@ export class LMStudioApi {
 
           try {
             const event = JSON.parse(data)
+            console.debug('[SSE]', event)
+
             if (event.response_id) responseId = event.response_id
 
-            // Try multiple possible streaming formats
-            const text =
-              event.text ??
-              event.chunk ??
-              event.delta?.text ??
-              event.choices?.[0]?.delta?.content
+            // Anthropic-style: content_block_delta
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+              onChunk(event.delta.text)
+              continue
+            }
+            // Anthropic-style: message_delta with response_id / stats
+            if (event.type === 'message_delta' || event.type === 'message_stop') continue
 
-            if (typeof text === 'string' && text) onChunk(text)
+            // OpenAI-style
+            const openAiText = event.choices?.[0]?.delta?.content
+            if (typeof openAiText === 'string') { onChunk(openAiText); continue }
+
+            // Simple text / chunk field
+            const simpleText = event.text ?? event.chunk
+            if (typeof simpleText === 'string') { onChunk(simpleText); continue }
+
+            // LM Studio output-array style (replace, not delta)
+            if (Array.isArray(event.output)) {
+              const msg = event.output.find((o: { type: string }) => o.type === 'message')
+              if (msg?.content) onChunk(msg.content)
+            }
           } catch {}
         }
       }
