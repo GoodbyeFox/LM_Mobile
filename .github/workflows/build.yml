@@ -1,38 +1,52 @@
-name: Build and Package App (Legacy - Do not use)
+name: Build and Deploy
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build Mobile App
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
-      - name: Note about EAS
-        run: |
-          echo "⚠️  This workflow requires EAS_TOKEN secret to be set"
-          echo "For native builds, use EAS Build instead:"
-          echo "  eas build --platform android"
-          echo "  eas build --platform ios"
-          echo ""
-          echo "Primary workflow: build-apk.yml (recommended)"
-          echo "  - No authentication needed"
-          echo "  - Builds web version automatically"
-          echo "  - Supports GitHub Pages deployment"
+      - name: Build
+        run: npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v3
