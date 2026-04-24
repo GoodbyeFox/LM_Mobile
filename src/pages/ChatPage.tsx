@@ -116,9 +116,13 @@ export default function ChatPage() {
         chatInput,
         selectedModel,
         responseId,
-        (chunk) => {
+        (chunk, type) => {
           setMessages((prev) =>
-            prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m))
+            prev.map((m) => {
+              if (m.id !== assistantId) return m
+              if (type === 'reasoning') return { ...m, reasoning: (m.reasoning ?? '') + chunk }
+              return { ...m, content: m.content + chunk }
+            })
           )
         },
         controller.signal
@@ -220,6 +224,7 @@ export default function ChatPage() {
             content={m.content}
             outputItems={m.outputItems}
             images={m.images}
+            reasoning={m.reasoning}
             streaming={sending && idx === messages.length - 1 && m.role === 'assistant'}
           />
         ))}
@@ -291,17 +296,19 @@ function MessageBubble({
   content,
   outputItems,
   images,
+  reasoning,
   streaming,
 }: {
   role: 'user' | 'assistant'
   content: string
   outputItems?: OutputItem[]
   images?: string[]
+  reasoning?: string
   streaming?: boolean
 }) {
   return (
     <div className={`message-row message-${role}`}>
-      <div className={`message-bubble message-bubble-${role}${streaming && !content ? ' typing-bubble' : ''}`}>
+      <div className={`message-bubble message-bubble-${role}${streaming && !content && !reasoning ? ' typing-bubble' : ''}`}>
         {images && images.length > 0 && (
           <div className="message-images">
             {images.map((img, idx) => (
@@ -309,7 +316,13 @@ function MessageBubble({
             ))}
           </div>
         )}
-        {streaming && !content && !outputItems ? (
+        {reasoning && (
+          <details className="reasoning-block" open={streaming && !content}>
+            <summary className="reasoning-summary">思考过程</summary>
+            <div className="reasoning-content">{reasoning}</div>
+          </details>
+        )}
+        {streaming && !content && !reasoning ? (
           <TypingDots />
         ) : role === 'assistant' && outputItems ? (
           <>

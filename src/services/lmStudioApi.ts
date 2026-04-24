@@ -23,7 +23,7 @@ export class LMStudioApi {
     input: string | Array<{ type: string; [key: string]: unknown }>,
     model: string,
     previousResponseId: string | undefined,
-    onChunk: (text: string) => void,
+    onChunk: (text: string, type?: 'text' | 'reasoning') => void,
     signal?: AbortSignal
   ): Promise<{ responseId?: string }> {
     const response = await fetch(`${this.baseURL}/api/v1/chat`, {
@@ -74,30 +74,14 @@ export class LMStudioApi {
 
           try {
             const event = JSON.parse(data)
-            console.debug('[SSE]', event)
 
-            if (event.response_id) responseId = event.response_id
-
-            // Anthropic-style: content_block_delta
-            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-              onChunk(event.delta.text)
-              continue
-            }
-            // Anthropic-style: message_delta with response_id / stats
-            if (event.type === 'message_delta' || event.type === 'message_stop') continue
-
-            // OpenAI-style
-            const openAiText = event.choices?.[0]?.delta?.content
-            if (typeof openAiText === 'string') { onChunk(openAiText); continue }
-
-            // Simple text / chunk field
-            const simpleText = event.text ?? event.chunk
-            if (typeof simpleText === 'string') { onChunk(simpleText); continue }
-
-            // LM Studio output-array style (replace, not delta)
-            if (Array.isArray(event.output)) {
-              const msg = event.output.find((o: { type: string }) => o.type === 'message')
-              if (msg?.content) onChunk(msg.content)
+            // LM Studio native streaming format
+            if (event.type === 'text.delta' && typeof event.content === 'string') {
+              onChunk(event.content, 'text')
+            } else if (event.type === 'reasoning.delta' && typeof event.content === 'string') {
+              onChunk(event.content, 'reasoning')
+            } else if (event.type === 'chat.end') {
+              if (event.response_id) responseId = event.response_id
             }
           } catch {}
         }

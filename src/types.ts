@@ -6,6 +6,7 @@ export interface Message {
   responseId?: string
   outputItems?: OutputItem[]
   images?: string[]
+  reasoning?: string
 }
 
 export interface LoadedInstance {
