@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLMStudio } from '@/contexts/LMStudioContext'
 import { storage } from '@/services/storage'
-import type { ChatMessage, Message } from '@/types'
+import type { Message, Model } from '@/types'
 import './ChatPage.css'
 
 export default function ChatPage() {
-  const { api, isConfigured, config } = useLMStudio()
+  const { api, isConfigured } = useLMStudio()
   const [messages, setMessages] = useState<Message[]>(() => storage.getChatHistory())
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [models, setModels] = useState<Model[]>([])
+  const [selectedModel, setSelectedModel] = useState<string>('')
+  const [responseId, setResponseId] = useState<string | undefined>(undefined)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -22,10 +25,17 @@ export default function ChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, sending])
 
-  const historyForApi = useMemo<ChatMessage[]>(
-    () => messages.map((m) => ({ role: m.role, content: m.content })),
-    [messages],
-  )
+  useEffect(() => {
+    if (!api) return
+    api.listModels().then((list) => {
+      const llms = list.filter((m) => m.type === 'llm')
+      setModels(llms)
+      if (llms.length > 0 && !selectedModel) {
+        const loaded = llms.find((m) => m.loaded_instances.length > 0)
+        setSelectedModel(loaded?.key ?? llms[0].key)
+      }
+    }).catch(() => {})
+  }, [api])
 
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto'
@@ -34,7 +44,7 @@ export default function ChatPage() {
 
   const handleSend = async () => {
     const text = input.trim()
-    if (!text || !api || sending) return
+    if (!text || !api || sending || !selectedModel) return
 
     const userMessage: Message = {
       id: `u-${Date.now()}`,
@@ -50,17 +60,19 @@ export default function ChatPage() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
     try {
-      const response = await api.chat([...historyForApi, { role: 'user', content: text }], config?.defaultModel)
+      const response = await api.chat(text, selectedModel, responseId)
+      const messageItem = response.output.find((o) => o.type === 'message')
       const assistantMessage: Message = {
         id: `a-${Date.now()}`,
         role: 'assistant',
-        content: response.message.content,
+        content: messageItem?.content ?? '',
         timestamp: Date.now(),
+        responseId: response.response_id,
       }
+      setResponseId(response.response_id)
       setMessages((prev) => [...prev, assistantMessage])
     } catch (err) {
       setError(err instanceof Error ? err.message : '发送失败')
-      // 发送失败时回滚用户消息
       setMessages((prev) => prev.filter((m) => m.id !== userMessage.id))
       setInput(text)
     } finally {
@@ -79,6 +91,7 @@ export default function ChatPage() {
     if (messages.length === 0) return
     if (!confirm('确认清除当前对话？')) return
     setMessages([])
+    setResponseId(undefined)
     setError(null)
   }
 
@@ -102,14 +115,32 @@ export default function ChatPage() {
           <span className="chat-toolbar-dot" />
           <span>{messages.length > 0 ? `${messages.length} 条消息` : '开始新对话'}</span>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={handleClear}
-          disabled={messages.length === 0}
-        >
-          清空对话
-        </button>
+        <div className="chat-toolbar-right">
+          {models.length > 0 && (
+            <select
+              className="model-select"
+              value={selectedModel}
+              onChange={(e) => {
+                setSelectedModel(e.target.value)
+                setResponseId(undefined)
+              }}
+            >
+              {models.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.loaded_instances.length > 0 ? '● ' : '○ '}{m.display_name}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={handleClear}
+            disabled={messages.length === 0}
+          >
+            清空
+          </button>
+        </div>
       </div>
 
       <div ref={scrollRef} className="chat-messages">
@@ -140,7 +171,7 @@ export default function ChatPage() {
         <textarea
           ref={textareaRef}
           className="chat-input"
-          placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+          placeholder={selectedModel ? '输入消息，Enter 发送，Shift+Enter 换行' : '请先到模型页面加载一个模型'}
           rows={1}
           value={input}
           onChange={(e) => {
@@ -148,13 +179,13 @@ export default function ChatPage() {
             autoResize(e.target)
           }}
           onKeyDown={handleKeyDown}
-          disabled={sending}
+          disabled={sending || !selectedModel}
         />
         <button
           type="button"
           className="btn btn-primary chat-send"
           onClick={handleSend}
-          disabled={!input.trim() || sending}
+          disabled={!input.trim() || sending || !selectedModel}
           aria-label="发送"
         >
           {sending ? <span className="spinner" /> : <SendIcon />}
@@ -169,7 +200,7 @@ function MessageBubble({ role, content }: { role: 'user' | 'assistant'; content:
     <div className={`message-row message-${role}`}>
       <div className={`message-bubble message-bubble-${role}`}>
         {content.split('\n').map((line, i) => (
-          <p key={i}>{line || ' '}</p>
+          <p key={i}>{line || ' '}</p>
         ))}
       </div>
     </div>

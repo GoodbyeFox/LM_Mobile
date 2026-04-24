@@ -15,6 +15,23 @@
   gap: 12px;
 }
 
+.chat-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-select {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 12px;
+  max-width: 160px;
+  cursor: pointer;
+}
+
 .chat-toolbar-info {
   display: flex;
   align-items: center;

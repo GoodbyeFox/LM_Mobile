@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import type { ChatMessage, Model, LMStudioConfig, LoadedModel } from '@/types'
+import type { ChatResponse, Model, LMStudioConfig } from '@/types'
 
 export class LMStudioApi {
   private client: AxiosInstance
@@ -15,41 +15,28 @@ export class LMStudioApi {
     })
   }
 
-  async chat(messages: ChatMessage[], model?: string) {
+  async chat(input: string, model: string, previousResponseId?: string): Promise<ChatResponse> {
     const response = await this.client.post('/api/v1/chat', {
-      messages,
-      ...(model ? { model } : {}),
+      model,
+      input,
+      ...(previousResponseId ? { previous_response_id: previousResponseId } : {}),
     })
-    return response.data as {
-      message: ChatMessage
-      usage?: { promptTokens: number; completionTokens: number; totalTokens: number }
-    }
+    return response.data as ChatResponse
   }
 
   async listModels(): Promise<Model[]> {
     const response = await this.client.get('/api/v1/models')
     const data = response.data
-    if (Array.isArray(data)) {
-      return data
-    }
-    return data.models ?? data.data ?? []
+    return data.models ?? []
   }
 
-  async getLoadedModel(): Promise<LoadedModel | null> {
-    try {
-      const response = await this.client.get('/api/v1/status')
-      return response.data.loaded_model ?? null
-    } catch {
-      return null
-    }
+  async loadModel(modelKey: string): Promise<{ instance_id: string }> {
+    const response = await this.client.post('/api/v1/models/load', { model: modelKey })
+    return response.data
   }
 
-  async loadModel(id: string) {
-    await this.client.post('/api/v1/models/load', { id })
-  }
-
-  async unloadModel(id?: string) {
-    await this.client.post('/api/v1/models/unload', id ? { id } : {})
+  async unloadModel(instanceId: string): Promise<void> {
+    await this.client.post('/api/v1/models/unload', { instance_id: instanceId })
   }
 
   async testConnection(): Promise<{ ok: true } | { ok: false; error: string }> {
