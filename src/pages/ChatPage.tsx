@@ -112,7 +112,7 @@ export default function ChatPage() {
             ]
           : text
 
-      const { responseId: newResponseId } = await api.streamChat(
+      const { responseId: newResponseId, outputItems } = await api.streamChat(
         chatInput,
         selectedModel,
         responseId,
@@ -128,12 +128,14 @@ export default function ChatPage() {
         controller.signal
       )
 
-      if (newResponseId) {
-        setResponseId(newResponseId)
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, responseId: newResponseId } : m))
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, ...(newResponseId && { responseId: newResponseId }), ...(outputItems && { outputItems }) }
+            : m
         )
-      }
+      )
+      if (newResponseId) setResponseId(newResponseId)
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
       setError(err instanceof Error ? err.message : '发送失败')

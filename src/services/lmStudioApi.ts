@@ -25,7 +25,7 @@ export class LMStudioApi {
     previousResponseId: string | undefined,
     onChunk: (text: string, type?: 'text' | 'reasoning') => void,
     signal?: AbortSignal
-  ): Promise<{ responseId?: string }> {
+  ): Promise<{ responseId?: string; outputItems?: import('@/types').OutputItem[] }> {
     const response = await fetch(`${this.baseURL}/api/v1/chat`, {
       method: 'POST',
       headers: {
@@ -56,6 +56,7 @@ export class LMStudioApi {
     const decoder = new TextDecoder()
     let buffer = ''
     let responseId: string | undefined
+    let outputItems: import('@/types').OutputItem[] | undefined
 
     try {
       while (true) {
@@ -70,27 +71,35 @@ export class LMStudioApi {
           const trimmed = line.trim()
           if (!trimmed.startsWith('data:')) continue
           const data = trimmed.slice(5).trim()
-          if (data === '[DONE]') continue
+          if (!data || data === '[DONE]') continue
 
           try {
             const event = JSON.parse(data)
-
-            // LM Studio native streaming format
-            if (event.type === 'text.delta' && typeof event.content === 'string') {
-              onChunk(event.content, 'text')
-            } else if (event.type === 'reasoning.delta' && typeof event.content === 'string') {
-              onChunk(event.content, 'reasoning')
-            } else if (event.type === 'chat.end') {
-              if (event.response_id) responseId = event.response_id
+            switch (event.type) {
+              case 'message.delta':
+                if (typeof event.content === 'string') onChunk(event.content, 'text')
+                break
+              case 'reasoning.delta':
+                if (typeof event.content === 'string') onChunk(event.content, 'reasoning')
+                break
+              case 'chat.end':
+                responseId = event.result?.response_id
+                outputItems = event.result?.output
+                break
+              case 'error':
+                throw new Error(event.error?.message ?? 'Stream error')
             }
-          } catch {}
+          } catch (e) {
+            if (e instanceof Error && e.message !== 'Stream error') continue
+            throw e
+          }
         }
       }
     } finally {
       reader.releaseLock()
     }
 
-    return { responseId }
+    return { responseId, outputItems }
   }
 
   async listModels(): Promise<Model[]> {
