@@ -93,7 +93,7 @@ export default function ChatPage() {
         images.length > 0
           ? [
               { type: 'text', content: text || '' },
-              ...images.map((img) => ({ type: 'image', content: img })),
+              ...images.map((img) => ({ type: 'image', data_url: img })),
             ]
           : text
 
